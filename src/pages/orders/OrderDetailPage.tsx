@@ -37,17 +37,14 @@ const OrderDetailPage: React.FC = () => {
   
   useEffect(() => {
     if (!project || !order) {
-      // Project or order not found, redirect to projects page
       navigate('/projects');
     }
   }, [project, order, navigate]);
   
   useEffect(() => {
-    // Refresh data when it changes or when refreshKey changes
     setProject(getProjectById(projectId || ''));
     setOrder(getOrderById(orderId || ''));
     
-    // Get related incidents for this order
     if (order) {
       setRelatedIncidents(getIncidentsByOrderId(incidents, order));
     }
@@ -59,7 +56,6 @@ const OrderDetailPage: React.FC = () => {
     setIsSubmitting(true);
     
     try {
-      // First, add the delivery note
       const attachmentType = file?.type.includes('pdf')
         ? 'pdf'
         : file?.type.includes('excel') || file?.type.includes('spreadsheet')
@@ -76,29 +72,22 @@ const OrderDetailPage: React.FC = () => {
       
       addDeliveryNote(order.id, noteData);
       
-      // Get the new delivery note ID
       const updatedOrder = getOrderById(order.id);
       const newNote = updatedOrder?.deliveryNotes[updatedOrder.deliveryNotes.length - 1];
       
       if (newNote && file) {
-        // Only analyze if file is present
         const fileBase64 = await fileToBase64(file);
         
         let equipments = [];
         
-        // Use the OCR method from settings
         if (settings.ocrMethod === 'ai') {
-          // Use AI for OCR
           const prompt = getMistralAIPrompt();
           equipments = await analyzeDocumentWithAI(fileBase64, file.type, prompt);
         } else {
-          // Use Scribe.js for OCR (pure JavaScript)
           equipments = await analyzeDocumentWithScribe(fileBase64, file.type);
         }
         
-        // Add the extracted equipment to the delivery note
         for (const equipment of equipments) {
-          // Generate a device name for each equipment
           const deviceName = generateDeviceName(project.datacenter);
           
           addEquipment(newNote.id, {
@@ -109,7 +98,6 @@ const OrderDetailPage: React.FC = () => {
       }
       
       setIsAddingDeliveryNote(false);
-      // Refresh the order data after adding delivery note
       setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error('Error adding delivery note:', error);
@@ -245,7 +233,6 @@ const OrderDetailPage: React.FC = () => {
         )}
       </div>
       
-      {/* Incidents section */}
       <div className="mb-6">
         <IncidentsList 
           incidents={relatedIncidents}
@@ -254,7 +241,6 @@ const OrderDetailPage: React.FC = () => {
         />
       </div>
       
-      {/* Add Delivery Note Modal */}
       <Modal
         isOpen={isAddingDeliveryNote}
         onClose={() => setIsAddingDeliveryNote(false)}

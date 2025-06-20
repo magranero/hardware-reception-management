@@ -1,7 +1,6 @@
 import { Project, Equipment, EstimatedEquipment, Incident } from '../types';
 import { exportExcelFile as exportExcelFileFromService } from '../services/fileService';
 
-// Re-export the function from fileService
 export const exportExcelFile = exportExcelFileFromService;
 
 export const generateProjectCode = (
@@ -12,7 +11,6 @@ export const generateProjectCode = (
 ): string => {
   const datacenterInitial = datacenter.charAt(0).toUpperCase();
   
-  // Find first non-zero digit in RITM code
   let ritmWithoutLeadingZeros = '';
   for (let i = 0; i < ritmCode.length; i++) {
     if (ritmCode[i] !== '0' || ritmWithoutLeadingZeros.length > 0) {
@@ -20,7 +18,6 @@ export const generateProjectCode = (
     }
   }
   
-  // Create project code without spaces
   return `${datacenterInitial}-${client}-${ritmWithoutLeadingZeros}-${projectName}`.replace(/\s+/g, '');
 };
 
@@ -58,31 +55,6 @@ export const calculateDeliveryNoteProgress = (deliveryNote: any): number => {
   return deliveryNote.estimatedEquipment > 0 
     ? Math.round((deliveryNote.verifiedEquipment / deliveryNote.estimatedEquipment) * 100) 
     : 0;
-};
-
-export const findMatchingEquipment = (
-  deliveryEquipment: Equipment[],
-  estimatedEquipment: EstimatedEquipment[]
-): { [key: string]: string } => {
-  const matches: { [key: string]: string } = {};
-
-  deliveryEquipment.forEach(dEquip => {
-    if (dEquip.isMatched) return;
-
-    // Find potential matches based on equipment type and model
-    const potentialMatches = estimatedEquipment.filter(eEquip => 
-      eEquip.type.toLowerCase() === dEquip.type.toLowerCase() &&
-      eEquip.model.toLowerCase() === dEquip.model.toLowerCase() &&
-      eEquip.assignedEquipmentCount < eEquip.quantity
-    );
-
-    if (potentialMatches.length > 0) {
-      // Use the first available match
-      matches[dEquip.id] = potentialMatches[0].id;
-    }
-  });
-
-  return matches;
 };
 
 export const getMistralAIPrompt = (): string => {
@@ -129,23 +101,18 @@ export const formatDate = (date: string): string => {
   return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
 };
 
-// Function to find all incidents related to equipment in a delivery note
 export const getIncidentsByDeliveryNoteId = (incidents: Incident[], deliveryNoteId: string, equipments: Equipment[]): Incident[] => {
-  // Get all equipment IDs in this delivery note
   const equipmentIds = equipments.map(equipment => equipment.id);
   
-  // Filter incidents that are related to these equipment IDs
   return incidents.filter(incident => 
     equipmentIds.includes(incident.equipmentId)
   );
 };
 
-// Function to find all incidents related to equipment in an order (across all its delivery notes)
 export const getIncidentsByOrderId = (
   incidents: Incident[], 
-  order: any // Using 'any' here since the Order type might not include all the nested data we need
+  order: any
 ): Incident[] => {
-  // Get all equipment IDs from all delivery notes in this order
   const equipmentIds: string[] = [];
   
   if (order && order.deliveryNotes) {
@@ -158,18 +125,15 @@ export const getIncidentsByOrderId = (
     });
   }
   
-  // Filter incidents that are related to these equipment IDs
   return incidents.filter(incident => 
     equipmentIds.includes(incident.equipmentId)
   );
 };
 
-// Function to find all incidents related to equipment in a project (across all orders and delivery notes)
 export const getIncidentsByProjectId = (
   incidents: Incident[],
-  project: any // Using 'any' here since the Project type might not include all the nested data we need
+  project: any
 ): Incident[] => {
-  // Get all equipment IDs from all delivery notes in all orders in this project
   const equipmentIds: string[] = [];
   
   if (project && project.orders) {
@@ -186,7 +150,6 @@ export const getIncidentsByProjectId = (
     });
   }
   
-  // Filter incidents that are related to these equipment IDs
   return incidents.filter(incident => 
     equipmentIds.includes(incident.equipmentId)
   );

@@ -1,8 +1,7 @@
 import * as XLSX from 'xlsx';
 import { EstimatedEquipment } from '../types';
-import { analyzePdfWithMistral } from './mistralService';
+import { analyzeDocumentWithAI } from './aiService';
 import { getMistralAIPrompt } from '../utils/helpers';
-import { useSettingsStore } from '../store/settingsStore';
 
 /**
  * Parse Excel file using JavaScript (XLSX library)
@@ -15,19 +14,17 @@ export const parseExcelWithJS = async (file: File): Promise<{ equipmentList: Est
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
         
-        // Assume the first sheet contains project info
         const projectInfoSheet = workbook.Sheets[workbook.SheetNames[0]];
         const projectData = XLSX.utils.sheet_to_json(projectInfoSheet);
         
-        // Assume the second sheet contains equipment list
         let equipmentList: EstimatedEquipment[] = [];
         if (workbook.SheetNames.length > 1) {
           const equipmentSheet = workbook.Sheets[workbook.SheetNames[1]];
           const rawEquipmentList = XLSX.utils.sheet_to_json(equipmentSheet);
           
           equipmentList = rawEquipmentList.map((item: any) => ({
-            id: '',  // Will be assigned when added to store
-            projectId: '',  // Will be assigned when added to store
+            id: '',
+            projectId: '',
             type: item.Type || '',
             model: item.Model || '',
             quantity: parseInt(item.Quantity || '0', 10),
@@ -51,7 +48,6 @@ export const parseExcelWithJS = async (file: File): Promise<{ equipmentList: Est
  */
 export const parseExcelWithAI = async (file: File): Promise<{ equipmentList: EstimatedEquipment[], projectData: any }> => {
   try {
-    // Convert the Excel file to base64
     const reader = new FileReader();
     const fileBase64 = await new Promise<string>((resolve, reject) => {
       reader.onload = () => {
@@ -63,11 +59,9 @@ export const parseExcelWithAI = async (file: File): Promise<{ equipmentList: Est
       reader.readAsDataURL(file);
     });
     
-    // Use AI to analyze the Excel file
     const prompt = getMistralAIPrompt();
-    const equipments = await analyzePdfWithMistral(fileBase64, prompt);
+    const equipments = await analyzeDocumentWithAI(fileBase64, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', prompt);
     
-    // For now, just return some mock project data as AI may not structure it correctly
     const projectData = {
       RITM: 'RITM' + Math.floor(10000 + Math.random() * 90000),
       ProjectName: 'Proyecto Analizado por IA',
@@ -77,22 +71,18 @@ export const parseExcelWithAI = async (file: File): Promise<{ equipmentList: Est
       TeamsUrl: 'https://teams.microsoft.com/'
     };
     
-    // Convert the AI output to the expected format
     const equipmentList: EstimatedEquipment[] = equipments.reduce((acc: EstimatedEquipment[], equipment) => {
-      // Check if we already have this type and model
       const existingEquipment = acc.find(
         e => e.type.toLowerCase() === equipment.type.toLowerCase() && 
              e.model.toLowerCase() === equipment.model.toLowerCase()
       );
       
       if (existingEquipment) {
-        // Increment the quantity
         existingEquipment.quantity += 1;
       } else {
-        // Add new equipment type
         acc.push({
-          id: '',  // Will be assigned when added to store
-          projectId: '',  // Will be assigned when added to store
+          id: '',
+          projectId: '',
           type: equipment.type || 'Desconocido',
           model: equipment.model || 'Desconocido',
           quantity: 1,
@@ -106,7 +96,6 @@ export const parseExcelWithAI = async (file: File): Promise<{ equipmentList: Est
     return { equipmentList, projectData };
   } catch (error) {
     console.error("Error parsing Excel with AI:", error);
-    // Fallback to JS parsing if AI fails
     return parseExcelWithJS(file);
   }
 };

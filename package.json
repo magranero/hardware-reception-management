@@ -10,9 +10,6 @@
     "preview": "vite preview",
     "start:backend": "node server/index.js",
     "dev:backend": "nodemon server/index.js",
-    "start:pm2": "pm2 start ecosystem.config.cjs",
-    "stop:pm2": "pm2 stop ecosystem.config.cjs",
-    "restart:pm2": "pm2 restart ecosystem.config.cjs",
     "test": "vitest run"
   },
   "dependencies": {
@@ -37,10 +34,8 @@
     "morgan": "^1.10.0",
     "helmet": "^7.1.0",
     "compression": "^1.7.4",
-    "pm2": "^5.3.1",
     "winston": "^3.11.0",
-    "multer": "^1.4.5-lts.1",
-    "tedious": "^16.7.0"
+    "multer": "^1.4.5-lts.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

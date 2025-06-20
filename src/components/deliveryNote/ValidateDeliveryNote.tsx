@@ -7,7 +7,7 @@ import Input from '../ui/Input';
 import Card from '../ui/Card';
 import Modal from '../ui/Modal';
 import { getMistralAIPrompt } from '../../utils/helpers';
-import { automaticMatchEquipments as callMistralForMatching } from '../../services/mistralService';
+import { automaticMatchEquipments } from '../../services/aiService';
 
 interface ValidateDeliveryNoteProps {
   equipments: Equipment[];
@@ -36,7 +36,6 @@ const ValidateDeliveryNote: React.FC<ValidateDeliveryNoteProps> = ({
   const [isMatchAllModalOpen, setIsMatchAllModalOpen] = useState(false);
   
   useEffect(() => {
-    // Filter out matched and unmatched equipment
     const matched = equipments.filter(e => e.isMatched);
     const unmatched = equipments.filter(e => !e.isMatched);
     
@@ -47,20 +46,13 @@ const ValidateDeliveryNote: React.FC<ValidateDeliveryNoteProps> = ({
   const handleDragEnd = useCallback((result: any) => {
     const { source, destination } = result;
     
-    // If dropped outside any droppable area
     if (!destination) return;
+    if (source.droppableId === destination.droppableId) return;
     
-    // Moving within the same list (reordering)
-    if (source.droppableId === destination.droppableId) {
-      return;
-    }
-    
-    // If moving from unmatched to an estimated equipment
     if (source.droppableId === 'unmatched' && destination.droppableId.startsWith('estimated-')) {
       const equipmentId = unmatchedEquipments[source.index].id;
       const estimatedEquipmentId = destination.droppableId.split('-')[1];
       
-      // Check if this estimated equipment can accept more items
       const estimatedEquipment = estimatedEquipments.find(e => e.id === estimatedEquipmentId);
       
       if (estimatedEquipment && estimatedEquipment.assignedEquipmentCount < estimatedEquipment.quantity) {
@@ -97,10 +89,7 @@ const ValidateDeliveryNote: React.FC<ValidateDeliveryNoteProps> = ({
     setIsAiProcessing(true);
     
     try {
-      // Get only unmatched equipments
       const unmatchedForAI = equipments.filter(e => !e.isMatched);
-      
-      // Get available estimated equipment slots
       const availableEstimated = estimatedEquipments.map(e => ({
         id: e.id,
         type: e.type,
@@ -108,28 +97,21 @@ const ValidateDeliveryNote: React.FC<ValidateDeliveryNoteProps> = ({
         remaining: e.quantity - e.assignedEquipmentCount
       })).filter(e => e.remaining > 0);
       
-      // Only process if we have unmatched equipments and available slots
       if (unmatchedForAI.length > 0 && availableEstimated.length > 0) {
-        // Prepare prompt for Mistral AI
         const prompt = getMistralAIPrompt();
-        
-        // Call Mistral AI service
-        const matches = await callMistralForMatching(
+        const matches = await automaticMatchEquipments(
           unmatchedForAI,
           availableEstimated,
           prompt
         );
         
-        // Apply matches one by one
         for (const [equipmentId, estimatedId] of Object.entries(matches)) {
-          // Check if the estimated equipment still has capacity
           const estimatedEquipment = estimatedEquipments.find(e => e.id === estimatedId);
           if (estimatedEquipment && estimatedEquipment.assignedEquipmentCount < estimatedEquipment.quantity) {
             onMatch(equipmentId, estimatedId);
           }
         }
         
-        // Notify of completion
         alert(`Match automático completado. Se han emparejado ${Object.keys(matches).length} equipos.`);
       } else {
         alert('No hay equipos sin emparejar o no hay slots disponibles en equipos estimados.');
@@ -139,7 +121,7 @@ const ValidateDeliveryNote: React.FC<ValidateDeliveryNoteProps> = ({
       alert('Error al realizar el emparejamiento automático. Por favor, inténtalo de nuevo.');
     } finally {
       setIsAiProcessing(false);
-      onAutomaticMatch(); // Refresh data
+      onAutomaticMatch();
     }
   };
   
@@ -148,17 +130,14 @@ const ValidateDeliveryNote: React.FC<ValidateDeliveryNoteProps> = ({
   };
   
   const confirmMatchAll = () => {
-    // Close the modal first
     setIsMatchAllModalOpen(false);
     
-    // Get unmatched equipments
     const unmatchedForMatching = equipments.filter(e => !e.isMatched);
     if (unmatchedForMatching.length === 0) {
       alert('No hay equipos para emparejar.');
       return;
     }
     
-    // Get available estimated equipment slots
     const availableEstimated = [...estimatedEquipments]
       .map(e => ({
         ...e,
@@ -172,10 +151,8 @@ const ValidateDeliveryNote: React.FC<ValidateDeliveryNoteProps> = ({
       return;
     }
     
-    // Match equipment in order
     let matchCount = 0;
     for (const equipment of unmatchedForMatching) {
-      // Find first available estimated equipment slot
       for (const estimatedEquipment of availableEstimated) {
         if (estimatedEquipment.remaining > 0) {
           onMatch(equipment.id, estimatedEquipment.id);
@@ -186,14 +163,10 @@ const ValidateDeliveryNote: React.FC<ValidateDeliveryNoteProps> = ({
       }
     }
     
-    // Notify of completion
     alert(`Match automático completado. Se han emparejado ${matchCount} equipos.`);
-    
-    // Refresh data
     onAutomaticMatch();
   };
   
-  // Check if all equipment has been matched
   const allEquipmentMatched = unmatchedEquipments.length === 0 && equipments.length > 0;
   
   return (
@@ -222,13 +195,11 @@ const ValidateDeliveryNote: React.FC<ValidateDeliveryNoteProps> = ({
         </div>
       </div>
       
-      {/* Matched Equipment List - Displayed at the top */}
       {matchedEquipments.length > 0 && (
         <div className="mb-6">
           <h4 className="text-md font-medium mb-2">Equipos Emparejados</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {matchedEquipments.map((equipment) => {
-              // Find the estimated equipment this is matched with
               const matchedEstimated = estimatedEquipments.find(e => e.id === equipment.estimatedEquipmentId);
               
               return (
@@ -286,7 +257,6 @@ const ValidateDeliveryNote: React.FC<ValidateDeliveryNoteProps> = ({
       ) : (
         <DragDropContext onDragEnd={handleDragEnd}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Unmatched Equipments */}
             <div>
               <h4 className="text-md font-medium mb-2">Equipos del Albarán</h4>
               <div className="bg-gray-50 p-4 rounded-md min-h-[300px] border border-dashed border-gray-300">
@@ -348,14 +318,11 @@ const ValidateDeliveryNote: React.FC<ValidateDeliveryNoteProps> = ({
               </div>
             </div>
             
-            {/* Estimated Equipments */}
             <div>
               <h4 className="text-md font-medium mb-2">Equipos Estimados del Proyecto</h4>
               <div className="space-y-3">
                 {estimatedEquipments.map((estimatedEquipment) => {
-                  // Count how many matched equipments are assigned to this estimated equipment
                   const assignedCount = matchedEquipments.filter(e => e.estimatedEquipmentId === estimatedEquipment.id).length;
-                  // Check if this estimated equipment can accept more assignments
                   const canAcceptMore = assignedCount < estimatedEquipment.quantity;
                   
                   return (
@@ -413,7 +380,6 @@ const ValidateDeliveryNote: React.FC<ValidateDeliveryNoteProps> = ({
         </DragDropContext>
       )}
       
-      {/* Edit Equipment Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -479,7 +445,6 @@ const ValidateDeliveryNote: React.FC<ValidateDeliveryNoteProps> = ({
         )}
       </Modal>
       
-      {/* Match All Confirmation Modal */}
       <Modal
         isOpen={isMatchAllModalOpen}
         onClose={() => setIsMatchAllModalOpen(false)}

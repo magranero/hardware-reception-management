@@ -15,7 +15,6 @@ export const analyzeDocumentWithAI = async (
     const aiProvider = settings.aiProvider;
     
     if (settings.demoMode) {
-      // In demo mode, just return mock data
       return mockEquipment();
     }
     
@@ -43,83 +42,38 @@ const analyzeWithOpenAI = async (
   prompt: string,
   aiProvider: AIProvider
 ): Promise<Equipment[]> => {
-  try {
-    // Determine content type for proper encoding
-    const contentType = fileType.includes('pdf') 
-      ? 'application/pdf' 
-      : fileType.includes('image') 
-        ? 'image/jpeg' 
-        : 'application/octet-stream';
-    
-    // Call OpenAI API (assuming using their vision model)
-    const response = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
-      {
-        model: aiProvider.model,
-        messages: [
-          { role: 'system', content: prompt },
-          { 
-            role: 'user', 
-            content: [
-              { 
-                type: 'text', 
-                text: 'Analiza el siguiente documento y extrae la información de los equipos' 
-              },
-              { 
-                type: 'image_url', 
-                image_url: {
-                  url: `data:${contentType};base64,${fileBase64}`
-                } 
-              }
-            ] 
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 2000
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${aiProvider.apiKey}`
+  const contentType = fileType.includes('pdf') 
+    ? 'application/pdf' 
+    : fileType.includes('image') 
+      ? 'image/jpeg' 
+      : 'application/octet-stream';
+  
+  const response = await axios.post(
+    'https://api.openai.com/v1/chat/completions',
+    {
+      model: aiProvider.model,
+      messages: [
+        { role: 'system', content: prompt },
+        { 
+          role: 'user', 
+          content: [
+            { type: 'text', text: 'Analiza el siguiente documento y extrae la información de los equipos' },
+            { type: 'image_url', image_url: { url: `data:${contentType};base64,${fileBase64}` } }
+          ] 
         }
-      }
-    );
-    
-    // Parse the response
-    const aiResponse = response.data.choices[0].message.content;
-    
-    // Extract JSON from response
-    const jsonMatch = aiResponse.match(/```json([\s\S]*?)```/) || 
-                      aiResponse.match(/{[\s\S]*}/);
-    
-    if (jsonMatch) {
-      const jsonStr = jsonMatch[1] ? jsonMatch[1].trim() : jsonMatch[0].trim();
-      const result = JSON.parse(jsonStr);
-      
-      if (Array.isArray(result.equipments)) {
-        return result.equipments.map((item) => ({
-          id: '',  // Will be assigned when added to store
-          deliveryNoteId: null,
-          name: item.name || '',
-          serialNumber: item.serialNumber || '',
-          partNumber: item.partNumber || '',
-          deviceName: '',  // Will be generated later
-          type: item.type || '',
-          model: item.model || '',
-          isVerified: false,
-          photoPath: null,
-          isMatched: false,
-          matchedWithId: null,
-          estimatedEquipmentId: null
-        }));
+      ],
+      temperature: 0.1,
+      max_tokens: 2000
+    },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${aiProvider.apiKey}`
       }
     }
-    
-    throw new Error('No se pudo extraer información estructurada del documento');
-  } catch (error) {
-    console.error('Error analyzing with OpenAI:', error);
-    throw error;
-  }
+  );
+  
+  return parseAIResponse(response.data.choices[0].message.content);
 };
 
 /**
@@ -131,87 +85,41 @@ const analyzeWithAzureOpenAI = async (
   prompt: string,
   aiProvider: AIProvider
 ): Promise<Equipment[]> => {
-  try {
-    // Check if we have the necessary Azure configuration
-    if (!aiProvider.endpoint || !aiProvider.version) {
-      throw new Error('Faltan la configuración endpoint o version para Azure OpenAI');
-    }
-    
-    // Determine content type for proper encoding
-    const contentType = fileType.includes('pdf') 
-      ? 'application/pdf' 
-      : fileType.includes('image') 
-        ? 'image/jpeg' 
-        : 'application/octet-stream';
-    
-    // Call Azure OpenAI API
-    const response = await axios.post(
-      `${aiProvider.endpoint}/openai/deployments/${aiProvider.model}/chat/completions?api-version=${aiProvider.version}`,
-      {
-        messages: [
-          { role: 'system', content: prompt },
-          { 
-            role: 'user', 
-            content: [
-              { 
-                type: 'text', 
-                text: 'Analiza el siguiente documento y extrae la información de los equipos' 
-              },
-              { 
-                type: 'image_url', 
-                image_url: {
-                  url: `data:${contentType};base64,${fileBase64}`
-                } 
-              }
-            ] 
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 2000
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'api-key': aiProvider.apiKey
-        }
-      }
-    );
-    
-    // Parse the response
-    const aiResponse = response.data.choices[0].message.content;
-    
-    // Extract JSON from response
-    const jsonMatch = aiResponse.match(/```json([\s\S]*?)```/) || 
-                      aiResponse.match(/{[\s\S]*}/);
-    
-    if (jsonMatch) {
-      const jsonStr = jsonMatch[1] ? jsonMatch[1].trim() : jsonMatch[0].trim();
-      const result = JSON.parse(jsonStr);
-      
-      if (Array.isArray(result.equipments)) {
-        return result.equipments.map((item) => ({
-          id: '',  // Will be assigned when added to store
-          deliveryNoteId: null,
-          name: item.name || '',
-          serialNumber: item.serialNumber || '',
-          partNumber: item.partNumber || '',
-          deviceName: '',  // Will be generated later
-          type: item.type || '',
-          model: item.model || '',
-          isVerified: false,
-          photoPath: null,
-          isMatched: false,
-          matchedWithId: null,
-          estimatedEquipmentId: null
-        }));
-      }
-    }
-    
-    throw new Error('No se pudo extraer información estructurada del documento');
-  } catch (error) {
-    console.error('Error analyzing with Azure OpenAI:', error);
-    throw error;
+  if (!aiProvider.endpoint || !aiProvider.version) {
+    throw new Error('Faltan la configuración endpoint o version para Azure OpenAI');
   }
+  
+  const contentType = fileType.includes('pdf') 
+    ? 'application/pdf' 
+    : fileType.includes('image') 
+      ? 'image/jpeg' 
+      : 'application/octet-stream';
+  
+  const response = await axios.post(
+    `${aiProvider.endpoint}/openai/deployments/${aiProvider.model}/chat/completions?api-version=${aiProvider.version}`,
+    {
+      messages: [
+        { role: 'system', content: prompt },
+        { 
+          role: 'user', 
+          content: [
+            { type: 'text', text: 'Analiza el siguiente documento y extrae la información de los equipos' },
+            { type: 'image_url', image_url: { url: `data:${contentType};base64,${fileBase64}` } }
+          ] 
+        }
+      ],
+      temperature: 0.1,
+      max_tokens: 2000
+    },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': aiProvider.apiKey
+      }
+    }
+  );
+  
+  return parseAIResponse(response.data.choices[0].message.content);
 };
 
 /**
@@ -223,83 +131,71 @@ const analyzeWithMistralAI = async (
   prompt: string,
   aiProvider: AIProvider
 ): Promise<Equipment[]> => {
-  try {
-    // Determine content type for proper encoding
-    const contentType = fileType.includes('pdf') 
-      ? 'application/pdf' 
-      : fileType.includes('image') 
-        ? 'image/jpeg' 
-        : 'application/octet-stream';
-    
-    // Call Mistral API
-    const response = await axios.post(
-      'https://api.mistral.ai/v1/chat/completions',
-      {
-        model: aiProvider.model,
-        messages: [
-          { role: 'system', content: prompt },
-          { 
-            role: 'user', 
-            content: [
-              { 
-                type: 'text', 
-                text: 'Analiza el siguiente documento y extrae la información de los equipos' 
-              },
-              { 
-                type: 'image', 
-                image_url: {
-                  url: `data:${contentType};base64,${fileBase64}`
-                } 
-              }
-            ] 
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 2000
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${aiProvider.apiKey}`
+  const contentType = fileType.includes('pdf') 
+    ? 'application/pdf' 
+    : fileType.includes('image') 
+      ? 'image/jpeg' 
+      : 'application/octet-stream';
+  
+  const response = await axios.post(
+    'https://api.mistral.ai/v1/chat/completions',
+    {
+      model: aiProvider.model,
+      messages: [
+        { role: 'system', content: prompt },
+        { 
+          role: 'user', 
+          content: [
+            { type: 'text', text: 'Analiza el siguiente documento y extrae la información de los equipos' },
+            { type: 'image', image_url: { url: `data:${contentType};base64,${fileBase64}` } }
+          ] 
         }
-      }
-    );
-    
-    // Parse the response
-    const aiResponse = response.data.choices[0].message.content;
-    
-    // Extract JSON from response
-    const jsonMatch = aiResponse.match(/```json([\s\S]*?)```/) || 
-                      aiResponse.match(/{[\s\S]*}/);
-    
-    if (jsonMatch) {
-      const jsonStr = jsonMatch[1] ? jsonMatch[1].trim() : jsonMatch[0].trim();
-      const result = JSON.parse(jsonStr);
-      
-      if (Array.isArray(result.equipments)) {
-        return result.equipments.map((item) => ({
-          id: '',  // Will be assigned when added to store
-          deliveryNoteId: null,
-          name: item.name || '',
-          serialNumber: item.serialNumber || '',
-          partNumber: item.partNumber || '',
-          deviceName: '',  // Will be generated later
-          type: item.type || '',
-          model: item.model || '',
-          isVerified: false,
-          photoPath: null,
-          isMatched: false,
-          matchedWithId: null,
-          estimatedEquipmentId: null
-        }));
+      ],
+      temperature: 0.1,
+      max_tokens: 2000
+    },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${aiProvider.apiKey}`
       }
     }
+  );
+  
+  return parseAIResponse(response.data.choices[0].message.content);
+};
+
+/**
+ * Parse AI response and extract equipment data
+ */
+const parseAIResponse = (aiResponse: string): Equipment[] => {
+  const jsonMatch = aiResponse.match(/```json([\s\S]*?)```/) || 
+                    aiResponse.match(/{[\s\S]*}/);
+  
+  if (jsonMatch) {
+    const jsonStr = jsonMatch[1] ? jsonMatch[1].trim() : jsonMatch[0].trim();
+    const result = JSON.parse(jsonStr);
     
-    throw new Error('No se pudo extraer información estructurada del documento');
-  } catch (error) {
-    console.error('Error analyzing with Mistral AI:', error);
-    throw error;
+    if (Array.isArray(result.equipments)) {
+      return result.equipments.map((item) => ({
+        id: '',
+        deliveryNoteId: null,
+        name: item.name || '',
+        serialNumber: item.serialNumber || '',
+        partNumber: item.partNumber || '',
+        deviceName: '',
+        type: item.type || '',
+        model: item.model || '',
+        isVerified: false,
+        photoPath: null,
+        isMatched: false,
+        matchedWithId: null,
+        estimatedEquipmentId: null
+      }));
+    }
   }
+  
+  throw new Error('No se pudo extraer información estructurada del documento');
 };
 
 /**
@@ -310,28 +206,19 @@ export const automaticMatchEquipments = async (
   estimatedEquipments: any[],
   prompt: string
 ): Promise<Record<string, string>> => {
-  try {
-    const { settings } = useSettingsStore.getState();
-    
-    if (settings.demoMode) {
-      // In demo mode, generate some mock matches
-      return mockMatches(deliveryEquipments, estimatedEquipments);
-    } else {
-      // In a real implementation, we would call the appropriate AI service
-      // For now, we'll generate some mock matches
-      return mockMatches(deliveryEquipments, estimatedEquipments);
-    }
-  } catch (error) {
-    console.error('Error calling AI for matching:', error);
-    return {};
+  const { settings } = useSettingsStore.getState();
+  
+  if (settings.demoMode) {
+    return mockMatches(deliveryEquipments, estimatedEquipments);
   }
+  
+  // In a real implementation, we would call the appropriate AI service
+  return mockMatches(deliveryEquipments, estimatedEquipments);
 };
 
 /**
- * Helper functions to generate mock data for testing
+ * Helper function to generate mock equipment data
  */
-
-// Helper function to generate mock equipment data
 export const mockEquipment = (): Equipment[] => {
   const types = ['Servidor', 'Switch', 'Router', 'Storage'];
   const models = {
@@ -341,7 +228,7 @@ export const mockEquipment = (): Equipment[] => {
     'Storage': ['NetApp AFF A400', 'Dell EMC PowerStore', 'HPE Primera']
   };
   
-  const count = Math.floor(Math.random() * 5) + 3; // 3-7 items
+  const count = Math.floor(Math.random() * 5) + 3;
   const equipments: Equipment[] = [];
   
   for (let i = 0; i < count; i++) {
@@ -369,14 +256,14 @@ export const mockEquipment = (): Equipment[] => {
   return equipments;
 };
 
-// Helper function to generate mock matches
+/**
+ * Helper function to generate mock matches
+ */
 const mockMatches = (
   deliveryEquipments: Equipment[],
   estimatedEquipments: any[]
 ): Record<string, string> => {
   const matches: Record<string, string> = {};
-  
-  // Create a map of available estimated equipment
   const availableEstimated = new Map();
   
   estimatedEquipments.forEach(ee => {
@@ -393,9 +280,8 @@ const mockMatches = (
     }
   });
   
-  // Try to match equipment
   deliveryEquipments.forEach(de => {
-    if (de.isMatched) return; // Skip already matched equipment
+    if (de.isMatched) return;
     
     const key = `${de.type}-${de.model}`;
     const matchOptions = availableEstimated.get(key) || [];
@@ -403,11 +289,8 @@ const mockMatches = (
     if (matchOptions.length > 0) {
       const match = matchOptions[0];
       matches[de.id] = match.id;
-      
-      // Update remaining count
       match.remaining--;
       
-      // Remove from options if no more remaining
       if (match.remaining <= 0) {
         matchOptions.shift();
       }

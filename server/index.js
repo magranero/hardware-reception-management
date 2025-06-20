@@ -34,7 +34,7 @@ const __dirname = path.dirname(__filename);
 // Server configuration
 const app = express();
 const PORT = process.env.PORT || 3002;
-const IP_ADDRESS = process.env.IP_ADDRESS || '0.0.0.0'; // Use specific IP from environment or all interfaces as fallback
+const IP_ADDRESS = process.env.IP_ADDRESS || '0.0.0.0';
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, '..', 'uploads');
@@ -59,7 +59,6 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB max file size
   },
   fileFilter: (req, file, cb) => {
-    // Accept only certain file types
     const allowedTypes = [
       'application/pdf',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -76,9 +75,9 @@ const upload = multer({
 });
 
 // Middleware setup
-app.use(helmet({ contentSecurityPolicy: false })); // Disable CSP for development
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
-  origin: '*', // Allow all origins
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Demo-Mode', 'Accept', 'Origin'],
   credentials: true
@@ -103,7 +102,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/uploads', uploadRoutes(upload));
 app.use('/api/utils', utilsRoutes);
 
-// Health check endpoint - allow access to both /api/health and /health
+// Health check endpoint
 app.get(['/api/health', '/health'], (req, res) => {
   res.status(200).json({ 
     status: 'ok', 
@@ -128,10 +127,8 @@ app.options('*', cors());
 
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
-  // Serve static files from the dist directory (built frontend)
   app.use(express.static(path.join(__dirname, '..', 'dist')));
 
-  // Handle SPA routing - send all requests to index.html
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'dist', 'index.html'));
   });
