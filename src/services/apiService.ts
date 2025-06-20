@@ -3,7 +3,6 @@ import { useSettingsStore } from '../store/settingsStore';
 
 // Get API base URL from environment variables
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
-console.log('API Service initialized with base URL:', API_BASE_URL);
 
 // Create axios instance
 const api = axios.create({
@@ -80,20 +79,15 @@ export const apiService = {
   // Health check
   healthCheck: async () => {
     try {
-      console.log('Sending health check request to:', API_BASE_URL + '/health');
       const response = await api.get('/health', { 
-        // Reduce timeout for health checks to fail faster
         timeout: 5000,
-        // Retry on network errors
         validateStatus: (status) => status >= 200 && status < 500 
       });
-      console.log('Health check response:', response.data);
       return {
         success: true,
         data: response.data
       };
     } catch (error) {
-      // Improved error handling with more specific information
       let errorMessage = 'Unknown error';
       let statusCode = undefined;
       
@@ -113,12 +107,6 @@ export const apiService = {
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
-      
-      console.error('Health check failed:', {
-        message: errorMessage,
-        statusCode,
-        originalError: error
-      });
       
       return {
         success: false,
@@ -337,16 +325,13 @@ export const apiService = {
   // Testing Endpoint
   testConnection: async () => {
     try {
-      console.log('Testing connection to:', API_BASE_URL + '/health');
       const response = await api.get('/health');
-      console.log('Connection test response:', response.data);
       return {
         success: true,
         status: response.status,
         data: response.data
       };
     } catch (error) {
-      console.error('Connection test failed:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'

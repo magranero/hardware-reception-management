@@ -34,18 +34,26 @@ const __dirname = path.dirname(__filename);
 // Server configuration
 const app = express();
 const PORT = process.env.PORT || 3002;
-const IP_ADDRESS = process.env.IP_ADDRESS || '0.0.0.0';
+const IP_ADDRESS = process.env.IP_ADDRESS || '127.0.0.1';
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, '..', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+// Create necessary directories if they don't exist
+const createDirIfNotExists = (dirPath) => {
+  const fullPath = path.join(__dirname, '..', dirPath);
+  if (!fs.existsSync(fullPath)) {
+    fs.mkdirSync(fullPath, { recursive: true });
+    logger.info(`Created directory: ${dirPath}`);
+  }
+};
+
+// Create required directories
+createDirIfNotExists('uploads');
+createDirIfNotExists('logs/pm2');
+createDirIfNotExists('uploads/excel');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadsDir);
+    cb(null, path.join(__dirname, '..', 'uploads'));
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
@@ -83,7 +91,7 @@ app.use(cors({
   credentials: true
 }));
 app.use(compression());
-app.use(morgan('dev'));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(requestLogger);
@@ -112,7 +120,7 @@ app.get(['/api/health', '/health'], (req, res) => {
   });
 });
 
-// Simple Hello World for testing
+// Simple root endpoint for testing
 app.get(['/api', '/'], (req, res) => {
   res.json({ 
     message: 'Welcome to DataCenter Manager API',
@@ -141,7 +149,7 @@ app.use(errorHandler);
 app.listen(PORT, IP_ADDRESS, () => {
   logger.info(`Server running on port ${PORT} and IP ${IP_ADDRESS}`);
   console.log(`Server running on port ${PORT} and IP ${IP_ADDRESS}`);
-  console.log(`API accessible at http://localhost:${PORT}/api`);
+  console.log(`API accessible at http://${IP_ADDRESS}:${PORT}/api`);
 });
 
 export default app;

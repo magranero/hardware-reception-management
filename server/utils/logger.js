@@ -13,6 +13,11 @@ if (!fs.existsSync(logDir)) {
   fs.mkdirSync(logDir, { recursive: true });
 }
 
+const pm2LogDir = path.join(logDir, 'pm2');
+if (!fs.existsSync(pm2LogDir)) {
+  fs.mkdirSync(pm2LogDir, { recursive: true });
+}
+
 // Define log format
 const logFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
@@ -51,4 +56,14 @@ if (process.env.NODE_ENV !== 'production') {
       winston.format.simple()
     ),
   }));
+} else {
+  // In production, add daily rotate file transport
+  logger.add(
+    new winston.transports.File({
+      filename: path.join(logDir, 'access.log'),
+      level: 'http',
+      maxsize: 5242880, // 5MB
+      maxFiles: 7,
+    })
+  );
 }

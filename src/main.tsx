@@ -18,8 +18,6 @@ const AppInitializer = () => {
         if (!result.success) {
           setInitError(result.error || 'Error al inicializar la aplicación');
           console.error('Initialization error:', result.error);
-          
-          // Still set initialized to true so the app loads, but with error state
           setIsInitialized(true);
         } else {
           setIsInitialized(true);
