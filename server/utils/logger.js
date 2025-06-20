@@ -2,6 +2,7 @@ import winston from 'winston';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import 'winston-daily-rotate-file';
 
 // Get __dirname in ES module scope
 const __filename = fileURLToPath(import.meta.url);
@@ -18,37 +19,99 @@ if (!fs.existsSync(pm2LogDir)) {
   fs.mkdirSync(pm2LogDir, { recursive: true });
 }
 
-// Define log format
+// Application instance identifier (useful for cluster mode)
+const instanceId = process.env.NODE_APP_INSTANCE || '0';
+
+// Define log format with detailed information
 const logFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
   winston.format.errors({ stack: true }),
   winston.format.splat(),
-  winston.format.json()
+  winston.format.metadata({ fillExcept: ['message', 'level', 'timestamp', 'label'] }),
+  winston.format.printf(info => {
+    const { timestamp, level, message, metadata, stack } = info;
+    let logMessage = `[${timestamp}] [${level.toUpperCase()}] [Instance:${instanceId}]: ${message}`;
+    
+    // Add metadata if available
+    if (metadata && Object.keys(metadata).length > 0 && metadata.constructor === Object) {
+      logMessage += ` | ${JSON.stringify(metadata)}`;
+    }
+    
+    // Add stack trace if available
+    if (stack) {
+      logMessage += `\n${stack}`;
+    }
+    
+    return logMessage;
+  })
 );
+
+// Create file transport configuration for daily rotation
+const dailyRotateFileTransport = new winston.transports.DailyRotateFile({
+  filename: path.join(logDir, 'application-%DATE%.log'),
+  datePattern: 'YYYY-MM-DD',
+  zippedArchive: true,
+  maxSize: '20m',
+  maxFiles: '14d',
+  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug'
+});
+
+// Create PM2-specific rotate file transport
+const pm2RotateFileTransport = new winston.transports.DailyRotateFile({
+  filename: path.join(pm2LogDir, 'pm2-%DATE%.log'),
+  datePattern: 'YYYY-MM-DD',
+  zippedArchive: true,
+  maxSize: '20m',
+  maxFiles: '14d',
+  level: 'info'
+});
+
+// Create HTTP-specific rotate file transport
+const httpRotateFileTransport = new winston.transports.DailyRotateFile({
+  filename: path.join(logDir, 'http-%DATE%.log'),
+  datePattern: 'YYYY-MM-DD',
+  zippedArchive: true,
+  maxSize: '20m',
+  maxFiles: '14d',
+  level: 'http'
+});
+
+// Create error-specific rotate file transport
+const errorRotateFileTransport = new winston.transports.DailyRotateFile({
+  filename: path.join(logDir, 'error-%DATE%.log'),
+  datePattern: 'YYYY-MM-DD',
+  zippedArchive: true,
+  maxSize: '20m',
+  maxFiles: '14d',
+  level: 'error'
+});
 
 // Create logger
 export const logger = winston.createLogger({
   level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
   format: logFormat,
-  defaultMeta: { service: 'datacenter-api' },
+  defaultMeta: { 
+    service: 'datacenter-api',
+    environment: process.env.NODE_ENV || 'development',
+    host: process.env.HOSTNAME || 'unknown'
+  },
   transports: [
-    // Write all logs with level 'error' and below to 'error.log'
-    new winston.transports.File({ 
-      filename: path.join(logDir, 'error.log'), 
-      level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    }),
-    // Write all logs with level 'info' and below to 'combined.log'
-    new winston.transports.File({ 
-      filename: path.join(logDir, 'combined.log'),
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    }),
+    // Write to all logs with level 'info' and below
+    dailyRotateFileTransport,
+    
+    // Write errors to error log
+    errorRotateFileTransport,
+    
+    // Write PM2-specific logs
+    pm2RotateFileTransport,
+    
+    // Write HTTP logs to separate file
+    httpRotateFileTransport
   ],
+  exitOnError: false  // Do not exit on handled exceptions
 });
 
-// If we're not in production, log to the console as well
+// Add transport for non-production environments
 if (process.env.NODE_ENV !== 'production') {
   logger.add(new winston.transports.Console({
     format: winston.format.combine(
@@ -57,13 +120,22 @@ if (process.env.NODE_ENV !== 'production') {
     ),
   }));
 } else {
-  // In production, add daily rotate file transport
-  logger.add(
-    new winston.transports.File({
-      filename: path.join(logDir, 'access.log'),
-      level: 'http',
-      maxsize: 5242880, // 5MB
-      maxFiles: 7,
-    })
-  );
+  // In production, also log to console with limited information (for PM2 to capture)
+  logger.add(new winston.transports.Console({
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.printf(info => {
+        return `[${info.timestamp}] [${info.level}] [${info.service}]: ${info.message}`;
+      })
+    ),
+  }));
 }
+
+// Create specialized loggers for different components
+export const httpLogger = logger.child({ component: 'http' });
+export const dbLogger = logger.child({ component: 'database' });
+export const authLogger = logger.child({ component: 'auth' });
+export const apiLogger = logger.child({ component: 'api' });
+
+// Log startup information
+logger.info(`Logger initialized in ${process.env.NODE_ENV || 'development'} mode`);

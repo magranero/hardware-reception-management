@@ -18,9 +18,18 @@ const handleResponse = <T>(response: any): T => {
   return response.data;
 };
 
-// Add request interceptor to check for demo mode
+// Generate unique request ID for tracing
+const generateRequestId = () => {
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
+};
+
+// Add request interceptor to check for demo mode and add request ID
 api.interceptors.request.use((config) => {
   const { settings } = useSettingsStore.getState();
+  const requestId = generateRequestId();
+  
+  // Add request ID to headers for tracing
+  config.headers['X-Request-ID'] = requestId;
   
   // Log request if debug mode is enabled
   if (settings.debugMode) {
@@ -29,7 +38,8 @@ api.interceptors.request.use((config) => {
       method: config.method,
       data: config.data,
       params: config.params,
-      baseURL: config.baseURL
+      baseURL: config.baseURL,
+      requestId
     });
   }
   
@@ -39,19 +49,24 @@ api.interceptors.request.use((config) => {
   }
   
   return config;
+}, (error) => {
+  console.error('Request configuration error:', error);
+  return Promise.reject(error);
 });
 
 // Add response interceptor to log responses
 api.interceptors.response.use(
   (response) => {
     const { settings } = useSettingsStore.getState();
+    const requestId = response.config.headers['X-Request-ID'];
     
     // Log response if debug mode is enabled
     if (settings.debugMode) {
       console.log('%c 🟢 API Response:', 'background: #4CAF50; color: white; padding: 2px 6px; border-radius: 2px;', {
         url: response.config.url,
         status: response.status,
-        data: response.data
+        data: response.data,
+        requestId
       });
     }
     
@@ -59,6 +74,7 @@ api.interceptors.response.use(
   },
   (error) => {
     const { settings } = useSettingsStore.getState();
+    const requestId = error.config?.headers['X-Request-ID'];
     
     // Log error if debug mode is enabled
     if (settings.debugMode) {
@@ -66,7 +82,8 @@ api.interceptors.response.use(
         url: error.config?.url,
         status: error.response?.status,
         data: error.response?.data,
-        message: error.message
+        message: error.message,
+        requestId
       });
     }
     
