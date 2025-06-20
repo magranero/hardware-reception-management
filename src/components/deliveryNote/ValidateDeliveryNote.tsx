@@ -474,7 +474,7 @@ const ValidateDeliveryNote: React.FC<ValidateDeliveryNoteProps> = ({
           <div className="bg-yellow-50 p-4 rounded-md border border-yellow-200">
             <p className="text-sm text-yellow-800">
               <strong>Importante:</strong> El emparejamiento se realizará secuencialmente, sin tener en cuenta la compatibilidad específica entre equipos.
-              Para un emparejamiento más preciso, utilice la opción "Match Automático con IA" o arrastre manualmente los equipos.
+              Para un emparejamiento más preciso, utilice la opción "Match Automático con IA\" o arrastre manualmente los equipos.
             </p>
           </div>
         </div>
