@@ -1,5 +1,5 @@
 import { logger } from '../utils/logger.js';
-import { getSettings, updateSettings as updateSettingsFile } from '../utils/settings.js';
+import { getSettings as getSettingsUtil, updateSettings as updateSettingsFile } from '../utils/settings.js';
 import { getMistralAIPrompt } from '../utils/helpers.js';
 import axios from 'axios';
 import path from 'path';
@@ -15,7 +15,7 @@ const __dirname = path.dirname(__filename);
 export const analyzeDocument = async (req, res, next) => {
   try {
     const { fileBase64, fileType } = req.body;
-    const { ocrMethod } = getSettings();
+    const { ocrMethod } = getSettingsUtil();
     
     // Check if we have necessary data
     if (!fileBase64 || !fileType) {
@@ -45,7 +45,7 @@ export const analyzeDocument = async (req, res, next) => {
 // Helper function to analyze document with AI
 const analyzeWithAI = async (fileBase64, fileType) => {
   try {
-    const settings = getSettings();
+    const settings = getSettingsUtil();
     
     // Skip actual API call in demo environment
     if (process.env.NODE_ENV !== 'production' || settings.demoMode) {
@@ -359,7 +359,7 @@ export const exportToExcel = async (req, res, next) => {
 // Get current settings
 export const getSettings = async (req, res, next) => {
   try {
-    const settings = getSettings();
+    const settings = getSettingsUtil();
     res.json(settings);
   } catch (error) {
     next(error);
