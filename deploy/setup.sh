@@ -2,6 +2,7 @@
 
 # Setup script for Datacenter Management App
 # This script helps set up the application for production
+# Project location: D:/nginx/pistolas
 
 # Exit on any error
 set -e
@@ -13,6 +14,7 @@ YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
 echo -e "${GREEN}Starting setup for Datacenter Management App${NC}"
+echo "Project location: D:/nginx/pistolas"
 echo "========================================================="
 echo
 
@@ -39,13 +41,16 @@ echo
 # Create directories if they don't exist
 echo -e "${GREEN}Creating necessary directories...${NC}"
 mkdir -p logs/pm2
+mkdir -p logs/nginx
 mkdir -p uploads
 mkdir -p uploads/excel
+mkdir -p cache
 
 # Set proper permissions
 echo "Setting proper permissions on directories..."
 chmod -R 755 logs
 chmod -R 755 uploads
+chmod -R 755 cache
 
 # Check if .env.production file exists, copy to .env if it does
 if [ -f .env.production ]; then
@@ -119,22 +124,17 @@ EOL
 echo -e "${YELLOW}PM2 logrotate configuration created at $LOGROTATE_CONFIG${NC}"
 echo "To install this configuration, run: sudo cp $LOGROTATE_CONFIG /etc/logrotate.d/pm2-datacenter-app"
 
-# Nginx configuration suggestion
+# Nginx configuration instructions
 echo -e "${GREEN}Nginx configuration instructions:${NC}"
-echo "1. Edit the nginx.conf file to match your server paths:"
-echo "   vim deploy/nginx.conf"
-echo
-echo "2. Copy the nginx.conf file to your Nginx sites directory:"
-echo "   sudo cp deploy/nginx.conf /etc/nginx/sites-available/datacenter-app"
-echo
-echo "3. Create a symlink to enable the site:"
-echo "   sudo ln -s /etc/nginx/sites-available/datacenter-app /etc/nginx/sites-enabled/"
-echo
+echo "1. The nginx.conf file has been configured for the project location: D:/nginx/pistolas"
+echo "2. Copy the nginx.conf file to your Nginx configuration directory"
+echo "3. Edit the nginx.conf file to match your specific server requirements:"
+echo "   - Update server_name with your domain"
+echo "   - Configure SSL certificates if needed"
 echo "4. Test the Nginx configuration:"
-echo "   sudo nginx -t"
-echo
+echo "   nginx -t"
 echo "5. Restart Nginx:"
-echo "   sudo systemctl restart nginx"
+echo "   nginx -s reload"
 echo
 
 # Start the application with PM2
@@ -153,6 +153,11 @@ echo "Follow the instructions provided by the command."
 echo
 echo -e "${GREEN}Setup completed successfully!${NC}"
 echo -e "${YELLOW}Please check the logs directory for any errors.${NC}"
+echo
+echo -e "${GREEN}Project URLs:${NC}"
+echo "- Frontend: http://localhost"
+echo "- API: http://localhost/api"
+echo "- Health check: http://localhost/health"
 echo
 echo -e "${GREEN}Useful commands:${NC}"
 echo "- npm run pm2:logs   (View logs)"

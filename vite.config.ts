@@ -78,14 +78,22 @@ export default defineConfig(({ mode }) => {
             : 'assets/[ext]/[name].[ext]'
         }
       },
-      // Minification options
+      // Minification options - explicitly use terser
       minify: isProduction ? 'terser' : false,
-      terserOptions: {
+      terserOptions: isProduction ? {
         compress: {
-          drop_console: isProduction,
-          drop_debugger: isProduction
+          drop_console: true,
+          drop_debugger: true,
+          pure_funcs: ['console.log', 'console.info', 'console.debug'],
+          passes: 2
+        },
+        mangle: {
+          safari10: true
+        },
+        format: {
+          comments: false
         }
-      }
+      } : undefined
     },
     // Define environment variables for the client
     define: {
