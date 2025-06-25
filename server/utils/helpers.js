@@ -39,6 +39,63 @@ export const calculateProjectProgress = (project) => {
     : 0;
 };
 
+// Function to calculate order progress
+export const calculateOrderProgress = (order) => {
+  if (!order.deliveryNotes || order.deliveryNotes.length === 0) return 0;
+  
+  let verifiedEquipment = 0;
+  order.deliveryNotes.forEach((note) => {
+    verifiedEquipment += note.verifiedEquipment || 0;
+  });
+
+  return order.estimatedEquipment > 0 
+    ? Math.round((verifiedEquipment / order.estimatedEquipment) * 100) 
+    : 0;
+};
+
+// Function to calculate delivery note progress
+export const calculateDeliveryNoteProgress = (deliveryNote) => {
+  return deliveryNote.estimatedEquipment > 0 
+    ? Math.round((deliveryNote.verifiedEquipment / deliveryNote.estimatedEquipment) * 100) 
+    : 0;
+  client,
+  ritmCode,
+  projectName
+) => {
+  const datacenterInitial = datacenter.charAt(0).toUpperCase();
+  
+  // Find first non-zero digit in RITM code
+  let ritmWithoutLeadingZeros = '';
+  for (let i = 0; i < ritmCode.length; i++) {
+    if (ritmCode[i] !== '0' || ritmWithoutLeadingZeros.length > 0) {
+      ritmWithoutLeadingZeros += ritmCode[i];
+    }
+  }
+  
+  // Create project code without spaces
+  return `${datacenterInitial}-${client}-${ritmWithoutLeadingZeros}-${projectName}`.replace(/\s+/g, '');
+};
+
+// Function to calculate project progress
+export const calculateProjectProgress = (project) => {
+  if (!project.orders || project.orders.length === 0) return 0;
+  
+  let verifiedEquipment = 0;
+  let totalEstimatedEquipment = project.estimatedEquipment;
+
+  project.orders.forEach(order => {
+    if (order.deliveryNotes) {
+      order.deliveryNotes.forEach(note => {
+        verifiedEquipment += note.verifiedEquipment || 0;
+      });
+    }
+  });
+
+  return totalEstimatedEquipment > 0 
+    ? Math.round((verifiedEquipment / totalEstimatedEquipment) * 100) 
+    : 0;
+};
+
 // Function to generate a unique ID
 export const generateUniqueId = () => {
   return Math.random().toString(36).substring(2, 15) + 
