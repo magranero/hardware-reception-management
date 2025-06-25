@@ -58,6 +58,11 @@ export const calculateDeliveryNoteProgress = (deliveryNote) => {
   return deliveryNote.estimatedEquipment > 0 
     ? Math.round((deliveryNote.verifiedEquipment / deliveryNote.estimatedEquipment) * 100) 
     : 0;
+};
+
+// Function to generate project code
+export const generateProjectCode = (
+  datacenter,
   client,
   ritmCode,
   projectName
