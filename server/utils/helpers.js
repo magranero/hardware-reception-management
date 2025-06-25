@@ -60,53 +60,6 @@ export const calculateDeliveryNoteProgress = (deliveryNote) => {
     : 0;
 };
 
-// Function to generate project code
-export const generateProjectCode = (
-  datacenter,
-  client,
-  ritmCode,
-  projectName
-) => {
-  const datacenterInitial = datacenter.charAt(0).toUpperCase();
-  
-  // Find first non-zero digit in RITM code
-  let ritmWithoutLeadingZeros = '';
-  for (let i = 0; i < ritmCode.length; i++) {
-    if (ritmCode[i] !== '0' || ritmWithoutLeadingZeros.length > 0) {
-      ritmWithoutLeadingZeros += ritmCode[i];
-    }
-  }
-  
-  // Create project code without spaces
-  return `${datacenterInitial}-${client}-${ritmWithoutLeadingZeros}-${projectName}`.replace(/\s+/g, '');
-};
-
-// Function to calculate project progress
-export const calculateProjectProgress = (project) => {
-  if (!project.orders || project.orders.length === 0) return 0;
-  
-  let verifiedEquipment = 0;
-  let totalEstimatedEquipment = project.estimatedEquipment;
-
-  project.orders.forEach(order => {
-    if (order.deliveryNotes) {
-      order.deliveryNotes.forEach(note => {
-        verifiedEquipment += note.verifiedEquipment || 0;
-      });
-    }
-  });
-
-  return totalEstimatedEquipment > 0 
-    ? Math.round((verifiedEquipment / totalEstimatedEquipment) * 100) 
-    : 0;
-};
-
-// Function to generate a unique ID
-export const generateUniqueId = () => {
-  return Math.random().toString(36).substring(2, 15) + 
-         Math.random().toString(36).substring(2, 15);
-};
-
 // Function to get a Mistral AI prompt for document analysis
 export const getMistralAIPrompt = () => {
   return `
@@ -152,4 +105,16 @@ export const formatFileSize = (bytes) => {
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+// Function to generate a unique ID
+export const generateUniqueId = () => {
+  return Math.random().toString(36).substring(2, 15) + 
+         Math.random().toString(36).substring(2, 15);
+};
+
+// Function to get the next device name
+export const getNextDeviceName = (prefix, datacenter, lastNumber) => {
+  const newNumber = lastNumber + 1;
+  return `${prefix}-${datacenter}-${newNumber.toString().padStart(4, '0')}`;
 };
