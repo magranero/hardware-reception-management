@@ -12,12 +12,12 @@ module.exports = {
       env: {
         NODE_ENV: 'development',
         PORT: 3002,
-        IP_ADDRESS: '127.0.0.1'
+        IP_ADDRESS: '0.0.0.0'
       },
       env_production: {
         NODE_ENV: 'production',
         PORT: 3002,
-        IP_ADDRESS: '127.0.0.1'
+        IP_ADDRESS: '0.0.0.0'
       },
       log_date_format: 'YYYY-MM-DD HH:mm:ss.SSS Z',
       merge_logs: true,

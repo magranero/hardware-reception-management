@@ -1,4 +1,4 @@
-import sql from 'mssql';
+import { Pool } from 'pg';
 import { logger } from './logger.js';
 import { getSettings } from './settings.js';
 
@@ -16,25 +16,29 @@ const createPool = async () => {
   }
   
   const config = {
-    server: process.env.VITE_DB_SERVER,
-    database: process.env.VITE_DB_NAME,
-    user: process.env.VITE_DB_USER,
-    password: process.env.VITE_DB_PASSWORD,
-    port: parseInt(process.env.VITE_DB_PORT || '1433'),
-    options: {
-      encrypt: process.env.VITE_DB_ENCRYPT === 'true',
-      trustServerCertificate: true,
-      connectTimeout: 30000,
-      requestTimeout: 30000
-    }
+    host: process.env.DB_HOST || process.env.VITE_DB_HOST,
+    database: process.env.DB_NAME || process.env.VITE_DB_NAME,
+    user: process.env.DB_USER || process.env.VITE_DB_USER,
+    password: process.env.DB_PASSWORD || process.env.VITE_DB_PASSWORD,
+    port: parseInt(process.env.DB_PORT || process.env.VITE_DB_PORT || '5432'),
+    ssl: process.env.DB_SSL === 'true' || process.env.VITE_DB_SSL === 'true' ? 
+      { rejectUnauthorized: false } : false,
+    max: 20, // Maximum number of clients
+    idleTimeoutMillis: 30000, // How long a client is allowed to remain idle
+    connectionTimeoutMillis: 2000, // How long to wait for a new client
   };
   
   try {
-    logger.info('Creating new SQL connection pool');
-    const newPool = await new sql.ConnectionPool(config).connect();
+    logger.info('Creating new PostgreSQL connection pool');
+    const newPool = new Pool(config);
+    
+    // Test the connection
+    const client = await newPool.connect();
+    await client.query('SELECT NOW()');
+    client.release();
     
     // Log success but don't expose connection details
-    logger.info(`Connected to database ${config.database} on ${config.server}`);
+    logger.info(`Connected to database ${config.database} on ${config.host}`);
     
     return newPool;
   } catch (error) {
@@ -64,9 +68,9 @@ export const getConnection = async () => {
 export const closePool = async () => {
   if (pool) {
     try {
-      await pool.close();
+      await pool.end();
       pool = null;
-      logger.info('SQL connection pool closed');
+      logger.info('PostgreSQL connection pool closed');
     } catch (error) {
       logger.error('Error closing connection pool:', error);
       throw error;
@@ -85,18 +89,21 @@ export const executeQuery = async (query, params = []) => {
   }
   
   const connection = await getConnection();
-  const request = connection.request();
   
-  // Add parameters to request
-  params.forEach((param, index) => {
-    request.input(`param${index}`, param);
-  });
+  // Convert named parameters like @param0 to positional parameters $1, $2, etc.
+  let convertedQuery = query;
+  if (params.length > 0) {
+    // Replace @paramX with $X+1 (PostgreSQL uses 1-based indexing)
+    convertedQuery = query.replace(/@param(\d+)/g, (match, index) => `$${parseInt(index) + 1}`);
+  }
   
   try {
-    const result = await request.query(query);
-    return result.recordset;
+    const result = await connection.query(convertedQuery, params);
+    return result.rows;
   } catch (error) {
     logger.error('Error executing query:', error);
+    logger.error('Query:', convertedQuery);
+    logger.error('Params:', params);
     throw error;
   }
 };
@@ -112,18 +119,25 @@ export const executeStoredProcedure = async (procedureName, params = {}) => {
   }
   
   const connection = await getConnection();
-  const request = connection.request();
-  
-  // Add parameters to request
-  Object.entries(params).forEach(([key, value]) => {
-    request.input(key, value);
-  });
   
   try {
-    const result = await request.execute(procedureName);
-    return result.recordset;
+    // Convert parameters object to arrays
+    const paramNames = Object.keys(params);
+    const paramValues = Object.values(params);
+    
+    // Construct the function call
+    // In PostgreSQL, we call a function with SELECT * FROM function_name($1, $2, ...)
+    const placeholders = paramNames.map((_, index) => `$${index + 1}`).join(', ');
+    const functionCall = `SELECT * FROM ${procedureName}(${placeholders})`;
+    
+    logger.debug(`Calling PostgreSQL function: ${functionCall}`, { params: paramValues });
+    
+    const result = await connection.query(functionCall, paramValues);
+    return result.rows;
   } catch (error) {
     logger.error('Error executing stored procedure:', error);
+    logger.error('Procedure:', procedureName);
+    logger.error('Params:', params);
     throw error;
   }
 };
@@ -139,19 +153,27 @@ export const executeTransaction = async (queries = []) => {
   }
   
   const connection = await getConnection();
-  const transaction = new sql.Transaction(connection);
+  const client = await connection.connect();
   
   try {
-    await transaction.begin();
+    await client.query('BEGIN');
     
-    for (const query of queries) {
-      await transaction.request().query(query);
+    for (const queryObj of queries) {
+      // Each query can be { text: "SQL query", values: [param1, param2, ...] }
+      // or a string for simple queries
+      if (typeof queryObj === 'string') {
+        await client.query(queryObj);
+      } else {
+        await client.query(queryObj.text, queryObj.values || []);
+      }
     }
     
-    await transaction.commit();
+    await client.query('COMMIT');
   } catch (error) {
-    await transaction.rollback();
+    await client.query('ROLLBACK');
     logger.error('Transaction error:', error);
     throw error;
+  } finally {
+    client.release();
   }
 };
