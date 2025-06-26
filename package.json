@@ -6,11 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "start": "npm run start:backend",
+    "start": "node server/index.js",
+    "start:prod": "NODE_ENV=production node server/index.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "start:backend": "node server/index.js",
-    "start:prod": "npm run build && npm run start",
     "dev:backend": "nodemon server/index.js",
     "pm2:start": "pm2 start deploy/ecosystem.config.cjs",
     "pm2:stop": "pm2 stop deploy/ecosystem.config.cjs",

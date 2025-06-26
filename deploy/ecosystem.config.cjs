@@ -12,12 +12,14 @@ module.exports = {
       env: {
         NODE_ENV: 'development',
         PORT: 3002,
-        IP_ADDRESS: '0.0.0.0'
+        IP_ADDRESS: '0.0.0.0',
+        HEALTH_CHECK_PATH: '/health'
       },
       env_production: {
         NODE_ENV: 'production',
         PORT: 3002,
-        IP_ADDRESS: '0.0.0.0'
+        IP_ADDRESS: '0.0.0.0',
+        HEALTH_CHECK_PATH: '/health'
       },
       log_date_format: 'YYYY-MM-DD HH:mm:ss.SSS Z',
       merge_logs: true,

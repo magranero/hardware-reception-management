@@ -3,12 +3,6 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import fs from 'fs';
-import { v4 as uuidv4 } from 'uuid';
-import helmet from 'helmet';
-import compression from 'compression';
-import multer from 'multer';
 import helmet from 'helmet';
 import compression from 'compression';
 import multer from 'multer';
@@ -136,14 +130,19 @@ process.on('unhandledRejection', (reason, promise) => {
 // Define health check routes before any other middleware that might interfere
 // IMPORTANT: This needs to come before the SPA routing middleware
 app.get(['/api/health', '/health'], (req, res) => {
+  // Log the health check request
+  logger.info(`Health check requested from ${req.ip} at path ${req.path}`);
+  
   const healthData = {
     status: 'ok', 
     version: '1.0.2', 
     environment: process.env.NODE_ENV,
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    memoryUsage: process.memoryUsage(),
-    cpuUsage: process.cpuUsage()
+    // Simplified responses to reduce payload size
+    memoryUsage: {
+      rss: Math.round(process.memoryUsage().rss / 1024 / 1024) + 'MB'
+    }
   };
   
   logger.debug('Health check requested', { 

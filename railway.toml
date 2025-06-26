@@ -9,8 +9,7 @@ startCommand = "npm run start:prod"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
 # Health check configurado para usar la ruta /health
-healthcheckPath = "/api/health"
-healthcheckTimeout = 10
+healthcheckPath = "/health"
 healthcheckTimeout = 10
 
 [service]
@@ -21,12 +20,6 @@ autoscaling.max = 3
 
 # Health check
 healthcheck.enabled = true
-healthcheck.path = "/api/health"
+healthcheck.path = "/health"
 healthcheck.interval = "30s"
 healthcheck.timeout = "5s"
-healthcheck.interval = "30s"
-healthcheck.timeout = "5s"
-
-[env]
-PORT = "3002"
-NODE_ENV = "production"
