@@ -1,6 +1,7 @@
 # nixpacks.toml - Configuración para el builder de Railway
 [phases.setup]
 nixPkgs = ['nodejs_18', 'postgresql', 'python3']
+aptPkgs = ["build-essential", "python3-dev"]
 
 [phases.install]
 cmds = ['npm ci']
@@ -10,6 +11,3 @@ cmds = ['npm run build && mkdir -p logs/pm2 uploads/excel']
 
 [start]
 cmd = 'npm run start:prod'
-
-[phases.setup.aptPkgs]
-packages = ["build-essential", "python3-dev"]
