@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { logger } from '../utils/logger.js';
 import { getSettings } from '../utils/settings.js';
-import { sampleUsers } from '../data/sampleData.js';
+import { sampleUsers } from '../data/sampleData.js'; 
 
 // Secret key for JWT
 const JWT_SECRET = process.env.JWT_SECRET || 'datacenter-app-secret-key';

@@ -2,12 +2,14 @@
 [build]
 builder = "nixpacks"
 buildCommand = "npm install"
-watchPatterns = ["server/**", "package.json", "src/**"]
+watchPatterns = ["server/**", "package.json", "src/**", "nixpacks.toml", "Procfile"]
 
 [deploy]
 startCommand = "npm run start:prod"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
+healthcheckPath = "/api/health"
+healthcheckTimeout = 10
 
 [service]
 # Auto-scaling options
