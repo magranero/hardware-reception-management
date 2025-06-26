@@ -9,6 +9,9 @@ import { v4 as uuidv4 } from 'uuid';
 import helmet from 'helmet';
 import compression from 'compression';
 import multer from 'multer';
+import helmet from 'helmet';
+import compression from 'compression';
+import multer from 'multer';
 
 // Routes
 import projectRoutes from './routes/projects.js';
@@ -130,6 +133,28 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('UNHANDLED REJECTION:', reason);
 });
 
+// Define health check routes before any other middleware that might interfere
+// IMPORTANT: This needs to come before the SPA routing middleware
+app.get(['/api/health', '/health'], (req, res) => {
+  const healthData = {
+    status: 'ok', 
+    version: '1.0.2', 
+    environment: process.env.NODE_ENV,
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memoryUsage: process.memoryUsage(),
+    cpuUsage: process.cpuUsage()
+  };
+  
+  logger.debug('Health check requested', { 
+    endpoint: req.path,
+    requestId: req.id,
+    result: healthData.status
+  });
+  
+  res.status(200).json(healthData);
+});
+
 // Middleware setup
 logger.info('Configuring middleware');
 
@@ -190,27 +215,6 @@ app.use('/api/users', userRoutes);
 app.use('/api/uploads', uploadRoutes(upload));
 app.use('/api/utils', utilsRoutes);
 
-// Health check endpoint
-app.get(['/api/health', '/health'], (req, res) => {
-  const healthData = {
-    status: 'ok', 
-    version: '1.0.2', 
-    environment: process.env.NODE_ENV,
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    memoryUsage: process.memoryUsage(),
-    cpuUsage: process.cpuUsage()
-  };
-  
-  logger.debug('Health check requested', { 
-    endpoint: req.path,
-    requestId: req.id,
-    result: healthData.status
-  });
-  
-  res.status(200).json(healthData);
-});
-
 // Simple root endpoint for testing
 app.get(['/api', '/'], (req, res) => {
   const apiInfo = {
@@ -239,14 +243,20 @@ if (process.env.NODE_ENV === 'production') {
 
   logger.info(`Checking for frontend static files at ${distDir}`);
   
+  logger.info(`Checking for frontend static files at ${distDir}`);
+  
   // Check if the dist directory exists
   if (fs.existsSync(distDir)) {
     logger.info(`Serving static frontend from ${distDir}`);
     app.use(express.static(distDir, { 
       maxAge: '1d', // Cache static assets for 1 day
+      index: false  // Don't serve index.html automatically
       index: false // Don't serve index.html automatically
     }));
 
+    // API routes should be processed before the SPA catch-all
+    app.use('/api', (req, res, next) => next());
+    
     // SPA routing - send all requests to index.html
     app.get('*', (req, res) => {
       // Don't serve index.html for API routes or static assets
@@ -256,8 +266,24 @@ if (process.env.NODE_ENV === 'production') {
         return next();
       }
       
+      // Don't serve index.html for API routes or static assets
+      if (req.path.startsWith('/api/') || 
+          req.path.startsWith('/uploads/') || 
+          req.path.includes('.')) {
+        return next();
+      }
+      
       logger.debug(`SPA route requested: ${req.path}`);
-      res.sendFile(path.join(distDir, 'index.html'));
+      
+      // Check if index.html exists
+      const indexPath = path.join(distDir, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        return res.sendFile(indexPath);
+      } else {
+        logger.error(`Index file not found at ${indexPath}`);
+        return res.status(500).json({ error: 'Frontend assets missing' });
+      }
+    });
     });
   } else {
     logger.warn(`Static frontend directory not found at ${distDir}`);
@@ -274,6 +300,14 @@ const server = app.listen(PORT, IP_ADDRESS, () => {
   
   // Generate user-friendly access URLs
   const isLocalhost = IP_ADDRESS === '127.0.0.1' || IP_ADDRESS === '0.0.0.0' || IP_ADDRESS === 'localhost';
+  const accessUrl = isLocalhost ? `http://localhost:${PORT}` : `http://${IP_ADDRESS}:${PORT}`;
+  
+  logger.info(`API accessible at ${accessUrl}/api`);
+  logger.info(`Frontend accessible at ${accessUrl}`);
+  logger.info(`Health check endpoint at ${accessUrl}/health`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`API accessible at ${accessUrl}/api`);
+  console.log(`Health check endpoint at ${accessUrl}/health`);
   const accessUrl = isLocalhost ? `http://localhost:${PORT}` : `http://${IP_ADDRESS}:${PORT}`;
   
   logger.info(`API accessible at ${accessUrl}/api`);
