@@ -2,10 +2,13 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
-import path from 'path';
 import helmet from 'helmet';
 import compression from 'compression';
 import multer from 'multer';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 
 // Routes
 import projectRoutes from './routes/projects.js';

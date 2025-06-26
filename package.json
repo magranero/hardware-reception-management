@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "start": "node server/index.js",
+    "start": "NODE_ENV=production node server/index.js",
     "start:prod": "NODE_ENV=production node server/index.js",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -19,7 +19,7 @@
     "pm2:monit": "pm2 monit",
     "deploy": "npm run build && npm run pm2:restart",
     "test": "vitest run",
-    "postinstall": "npm run build"
+    "postinstall": "npm run build && mkdir -p logs/pm2 uploads/excel"
   },
   "dependencies": {
     "axios": "^1.6.7",
