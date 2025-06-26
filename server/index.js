@@ -2,13 +2,13 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
-import helmet from 'helmet';
-import compression from 'compression';
-import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import helmet from 'helmet';
+import compression from 'compression';
+import multer from 'multer';
 
 // Routes
 import projectRoutes from './routes/projects.js';
@@ -35,7 +35,7 @@ const __dirname = path.dirname(__filename);
 // Server configuration
 const app = express();
 const PORT = process.env.PORT || 3002;
-const IP_ADDRESS = process.env.IP_ADDRESS || '127.0.0.1';
+const IP_ADDRESS = process.env.IP_ADDRESS || '0.0.0.0';
 
 logger.info(`Starting server with Node.js ${process.version}`);
 logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
@@ -236,17 +236,27 @@ logger.debug('CORS preflight handling configured');
 // Serve frontend in production
 if (process.env.NODE_ENV === 'production') {
   const distDir = path.join(__dirname, '..', 'dist');
+
+  logger.info(`Checking for frontend static files at ${distDir}`);
   
   // Check if the dist directory exists
   if (fs.existsSync(distDir)) {
     logger.info(`Serving static frontend from ${distDir}`);
     app.use(express.static(distDir, { 
-      maxAge: '1d' // Cache static assets for 1 day
+      maxAge: '1d', // Cache static assets for 1 day
+      index: false // Don't serve index.html automatically
     }));
 
     // SPA routing - send all requests to index.html
     app.get('*', (req, res) => {
-      logger.debug(`SPA route requested: ${req.path}`, { requestId: req.id });
+      // Don't serve index.html for API routes or static assets
+      if (req.path.startsWith('/api/') || 
+          req.path.startsWith('/uploads/') || 
+          req.path.includes('.')) {
+        return next();
+      }
+      
+      logger.debug(`SPA route requested: ${req.path}`);
       res.sendFile(path.join(distDir, 'index.html'));
     });
   } else {
@@ -261,9 +271,16 @@ logger.debug('Error handler middleware configured');
 // Start the server with specific IP binding
 const server = app.listen(PORT, IP_ADDRESS, () => {
   logger.info(`Server started successfully on ${IP_ADDRESS}:${PORT}`);
-  logger.info(`API accessible at http://${IP_ADDRESS}:${PORT}/api`);
-  console.log(`Server running on port ${PORT} and IP ${IP_ADDRESS}`);
-  console.log(`API accessible at http://${IP_ADDRESS}:${PORT}/api`);
+  
+  // Generate user-friendly access URLs
+  const isLocalhost = IP_ADDRESS === '127.0.0.1' || IP_ADDRESS === '0.0.0.0' || IP_ADDRESS === 'localhost';
+  const accessUrl = isLocalhost ? `http://localhost:${PORT}` : `http://${IP_ADDRESS}:${PORT}`;
+  
+  logger.info(`API accessible at ${accessUrl}/api`);
+  logger.info(`Frontend accessible at ${accessUrl}`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`API accessible at ${accessUrl}/api`);
+  console.log(`Frontend accessible at ${accessUrl}`);
 });
 
 // Handle graceful shutdown

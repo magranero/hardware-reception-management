@@ -10,12 +10,19 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.env
+.env.local
+.env.production
+logs
+uploads/*
+!uploads/.gitkeep
 *.local
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
+# Environment variables
 .DS_Store
 *.suo
 *.ntvs*
@@ -23,3 +30,7 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.env.local
+
+# Railway local settings
+.railway

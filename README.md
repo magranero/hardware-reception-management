@@ -16,11 +16,11 @@ Una aplicación moderna para la gestión eficiente del ciclo de vida de equipami
 
 ## Guía Rápida de Inicio
 
-### Instalación
+### Instalación Local
 
 ```bash
 # Clonar el repositorio
-git clone https://github.com/tu-usuario/datacenter-manager.git
+git clone https://github.com/your-username/datacenter-manager.git
 cd datacenter-manager
 
 # Instalar dependencias
@@ -32,20 +32,82 @@ cp server/.env.example server/.env
 # Editar los archivos .env con tus valores
 ```
 
+## Despliegue en Railway
+
+DataCenter Manager está configurado para ser desplegado en Railway con PostgreSQL.
+
+### Configuración Inicial
+
+1. Ejecuta el script de configuración de Railway:
+
+```bash
+node scripts/setup-railway.js
+```
+
+Este script guiará en el proceso de:
+- Instalar Railway CLI si es necesario
+- Iniciar sesión en Railway
+- Crear un nuevo proyecto o vincular uno existente
+- Configurar una base de datos PostgreSQL
+
+### Variables de Entorno
+
+Railway necesita las siguientes variables de entorno:
+
+```bash
+# Autenticación y seguridad
+JWT_SECRET=un_valor_secreto_seguro_para_produccion
+
+# API Keys
+MISTRAL_API_KEY=tu_clave_api_de_mistral
+
+# Otras variables opcionales que puedes personalizar
+CONTACT_EMAIL=tu_email@ejemplo.com
+LOG_LEVEL=info
+CORS_ORIGIN=https://tu-dominio.com
+```
+
+> Las variables de base de datos (DATABASE_URL, etc.) son proporcionadas automáticamente por Railway.
+
+### Despliegue Manual
+
+Si prefieres desplegar manualmente:
+
+```bash
+# Instalar Railway CLI
+npm install -g @railway/cli
+
+# Iniciar sesión
+railway login
+
+# Vincular al proyecto
+railway link
+
+# Configurar variables de entorno
+railway variables set JWT_SECRET=tu_clave_secreta MISTRAL_API_KEY=tu_clave_api_mistral
+
+# Desplegar
+railway up
+```
+
+### Despliegue Automático
+
+Para configurar despliegues automáticos con GitHub:
+
+1. En GitHub, ve a Settings → Secrets → New repository secret
+2. Añade un nuevo secreto llamado `RAILWAY_TOKEN`
+3. El valor debe ser tu token de API de Railway (obtenible con `railway login --generate-token`)
+4. Cada push a la rama principal (`main`) activará un despliegue automático
+
 ### Configuración
 
-Edita el archivo `.env` con tus propias credenciales:
+Copia el archivo de ejemplo `.env.development` a `.env`:
 
 ```
-# API Keys
-VITE_MISTRAL_API_KEY=tu_clave_api_mistral
-
-# Configuración de Base de Datos
-VITE_DB_SERVER=nombre_de_tu_servidor
-VITE_DB_NAME=QEIS1DAT
-VITE_DB_USER=tu_usuario
-VITE_DB_PASSWORD=tu_contraseña
+cp .env.development .env
 ```
+
+Luego edita el archivo `.env` con tus propias credenciales.
 
 ### Ejecución
 
@@ -82,6 +144,50 @@ npm run stop:pm2
 npm run restart:pm2
 ```
 
+### Despliegue en Railway
+
+#### Requisitos
+
+1. Cuenta en [Railway](https://railway.app/)
+2. Repositorio en GitHub
+
+#### Pasos para desplegar
+
+1. **Configura tu proyecto en Railway**:
+   - Inicia sesión en Railway con tu cuenta de GitHub
+   - Crea un nuevo proyecto
+   - Selecciona "Deploy from GitHub repo"
+   - Selecciona tu repositorio
+
+2. **Configura las variables de entorno**:
+   - En el panel de Railway, ve a la sección "Variables"
+   - Añade todas las variables requeridas (ver archivo `.env.example`)
+   - Railway proporciona automáticamente las variables de base de datos (`DATABASE_URL`, `DATABASE_HOST`, etc.)
+
+3. **Configura el despliegue automático**:
+   - En GitHub, ve a "Settings" → "Secrets and variables" → "Actions"
+   - Añade un secreto llamado `RAILWAY_TOKEN` con tu token de API de Railway
+   (Puedes obtener el token en Railway: Dashboard → Account Settings → API Tokens)
+
+4. **Despliegue manual inicial**:
+   ```bash
+   # Instalar Railway CLI
+   npm install -g @railway/cli
+   
+   # Iniciar sesión
+   railway login
+   
+   # Vincular al proyecto
+   railway link
+   
+   # Desplegar
+   railway up
+   ```
+
+5. **Despliegue automático**:
+   - Cada push a la rama principal (`main`) activará un despliegue automático
+   - También puedes desplegar manualmente desde la interfaz de GitHub Actions
+
 ## Estructura del Proyecto
 
 ```
@@ -103,6 +209,27 @@ datacenter-manager/
 ├── uploads/            # Archivos subidos por los usuarios
 └── logs/               # Logs del sistema
 ```
+
+## Base de Datos
+
+El proyecto utiliza PostgreSQL para almacenar los datos.
+
+### Migraciones
+
+La estructura de la base de datos se define en los scripts de migración ubicados en el directorio `supabase/migrations`. Estos scripts se ejecutan automáticamente en Railway durante el despliegue.
+
+### Modelo de Datos
+
+El modelo de datos incluye las siguientes entidades principales:
+
+- `projects` - Información de proyectos
+- `orders` - Pedidos asociados a proyectos
+- `delivery_notes` - Albaranes de entrega
+- `equipments` - Equipos individuales recibidos
+- `estimated_equipments` - Equipos esperados para un proyecto
+- `incidents` - Incidencias reportadas para equipos
+
+Todas las tablas utilizan UUIDs como clave primaria y tienen campos para seguimiento de fechas de creación y actualización.
 
 ## API Backend
 

@@ -1,0 +1,26 @@
+# railway.toml - Configuración para Railway
+[build]
+builder = "nixpacks"
+buildCommand = "npm install"
+watchPatterns = ["server/**", "package.json", "src/**"]
+
+[deploy]
+startCommand = "npm run start:prod"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[service]
+# Auto-scaling options
+autoscaling.enabled = true
+autoscaling.min = 1
+autoscaling.max = 3
+
+# Health check
+healthcheck.enabled = true
+healthcheck.path = "/api/health"
+healthcheck.interval = "30s"
+healthcheck.timeout = "5s"
+
+[env]
+PORT = "3002"
+NODE_ENV = "production"
