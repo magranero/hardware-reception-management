@@ -251,21 +251,13 @@ if (process.env.NODE_ENV === 'production') {
     app.use(express.static(distDir, { 
       maxAge: '1d', // Cache static assets for 1 day
       index: false  // Don't serve index.html automatically
-      index: false // Don't serve index.html automatically
     }));
 
     // API routes should be processed before the SPA catch-all
     app.use('/api', (req, res, next) => next());
     
     // SPA routing - send all requests to index.html
-    app.get('*', (req, res) => {
-      // Don't serve index.html for API routes or static assets
-      if (req.path.startsWith('/api/') || 
-          req.path.startsWith('/uploads/') || 
-          req.path.includes('.')) {
-        return next();
-      }
-      
+    app.get('*', (req, res, next) => {
       // Don't serve index.html for API routes or static assets
       if (req.path.startsWith('/api/') || 
           req.path.startsWith('/uploads/') || 
@@ -283,7 +275,6 @@ if (process.env.NODE_ENV === 'production') {
         logger.error(`Index file not found at ${indexPath}`);
         return res.status(500).json({ error: 'Frontend assets missing' });
       }
-    });
     });
   } else {
     logger.warn(`Static frontend directory not found at ${distDir}`);
@@ -308,12 +299,6 @@ const server = app.listen(PORT, IP_ADDRESS, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`API accessible at ${accessUrl}/api`);
   console.log(`Health check endpoint at ${accessUrl}/health`);
-  const accessUrl = isLocalhost ? `http://localhost:${PORT}` : `http://${IP_ADDRESS}:${PORT}`;
-  
-  logger.info(`API accessible at ${accessUrl}/api`);
-  logger.info(`Frontend accessible at ${accessUrl}`);
-  console.log(`Server running on port ${PORT}`);
-  console.log(`API accessible at ${accessUrl}/api`);
   console.log(`Frontend accessible at ${accessUrl}`);
 });
 
